@@ -2,6 +2,7 @@
 #include "8059SimplePIDInclude/Control.hpp"
 #include "globals.hpp"
 #include "mech_lib.hpp"
+#include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/misc.h"
 #include "pros/motors.h"
@@ -34,6 +35,11 @@ void initialize() {
 	Motor MR(MLPort, E_MOTOR_GEARSET_06, true, E_MOTOR_ENCODER_DEGREES);
 	Motor BR(BRPort, E_MOTOR_GEARSET_06, false, E_MOTOR_ENCODER_DEGREES);
 
+	ADIDigitalOut piston1(piston1Port, LOW);
+	ADIDigitalOut piston2(piston2Port, LOW);
+	piston1.set_value(LOW);
+	piston2.set_value(LOW);
+
 	FL.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
 	ML.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
 	BL.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
@@ -47,7 +53,6 @@ void initialize() {
 	Task debugTask(Debug, (void*)"PROS", TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "Debug Task");
 
 	Task odometryTask(Odometry, (void*)"PROS", TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "Odom Task");
-	Task controlTask(Control, (void*)"PROS", TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "PP Task");
 }
 
 /**
@@ -103,6 +108,7 @@ void roller() {
 // goal -12, 111
 // shooting pt 45, 54
 void autonomous() {
+	Task controlTask(Control, (void*)"PROS", TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, "PP Task");
 	double start = millis();
 
 	// roller();
@@ -158,6 +164,9 @@ void autonomous() {
 	setIntakeTarget(0);
 
 	roller();
+
+
+	controlTask.suspend();
 }
 
 /**
@@ -181,8 +190,11 @@ void opcontrol() {
 	Motor FR(FRPort);
 	Motor MR(MRPort);
 	Motor BR(BRPort);
+
 	ADIDigitalOut piston1(piston1Port, LOW);
 	ADIDigitalOut piston2(piston2Port, LOW);
+	piston1.set_value(LOW);
+	piston2.set_value(LOW);
 
 	FL.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
 	ML.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
@@ -192,6 +204,8 @@ void opcontrol() {
 	BR.set_brake_mode(E_MOTOR_BRAKE_BRAKE);
 
 	bool tankDrive = true;
+	bool readyPiston = false;
+	waitBase(0);
 	
 	while(true){
 		double left, right;
@@ -214,11 +228,18 @@ void opcontrol() {
 		BR.move(right);
 
 		if(master.get_digital(DIGITAL_R1)) shootCat();
-		if(master.get_digital(DIGITAL_R2)) {
-			piston1.set_value(true);
-			piston2.set_value(true);
+		if(master.get_digital_new_press(DIGITAL_X)) {
+			readyPiston = true;
+			master.rumble(". - . -");
+			master.set_text(0, 0, ">:( ARE YOU SURE?");
+			printf("pressed\n");
 		}
-		if(master.get_digital(DIGITAL_X)) roller();
+		if(master.get_digital_new_press(DIGITAL_R2) && readyPiston) {
+			piston1.set_value(HIGH);
+			piston2.set_value(HIGH);
+			master.rumble(". - . -");
+		}
+		// if(master.get_digital(DIGITAL_X)) roller();
 		
 		setIntakeTarget((master.get_digital(DIGITAL_L1) - master.get_digital(DIGITAL_L2)) * 127);
 

@@ -27,7 +27,7 @@ void catControl(void*ignore) {
 
         catDown = rot.get_angle() > catMaxHeight/2;
 
-        printf("rot: %d, shootState: %d, catdown: %d\n", rot.get_angle(), shootState, catDown);
+        // printf("rot: %d, shootState: %d, catdown: %d\n", rot.get_angle(), shootState, catDown);
         delay(5);
     }
 }
